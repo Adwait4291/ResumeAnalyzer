@@ -1,0 +1,8 @@
+# [...] (Keep previous ignores)
+
+# Environment variables
+.env
+
+# [...] (Rest of previous ignores)
+=======
+# Configuration/Info for .gitignore
