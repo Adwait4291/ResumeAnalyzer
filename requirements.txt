@@ -1,19 +1,16 @@
-
 streamlit>=1.20.0
 spacy>=3.5.0,<4.0.0
 python-dotenv>=1.0.0
 pytest>=7.0.0
 
-# Optional: For reading PDF files
-# PyPDF2>=3.0.0
+# For reading PDF files
+PyPDF2>=3.0.0
 
-# Optional: For reading DOCX files
-# python-docx>=1.0.0
+# For reading DOCX files
+python-docx>=1.0.0
 
 # --- Development/Testing ---
 # pytest-cov # For checking test coverage
 
 # To generate/update this file after installing packages:
 # pip freeze > requirements.txt
-=======
-# Configuration/Info for requirements.txt
