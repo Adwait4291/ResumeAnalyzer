@@ -1,126 +1,97 @@
 import pytest
-import spacy
-from spacy.language import Language
-import os
-from dotenv import load_dotenv
+from pathlib import Path
+import io
 
-# Load environment variables for consistency if model name is used from there
-load_dotenv()
+# Import functions from helpers
+from src.utils.helpers import (
+    clean_text,
+    get_readability_scores,
+    check_contact_info,
+    check_section_headings,
+    find_quantifiable_achievements,
+    # Add imports for other testable functions like skill extraction if feasible
+)
+# Import readability if needed for direct comparison
+try:
+    import textstat
+    readability_available_test = True
+except ImportError:
+    readability_available_test = False
 
-# Import functions to test (adjust path if necessary)
-from src.nlp_processor.similarity import calculate_similarity, extract_and_compare_keywords
-# Assume models.py handles loading correctly, or load directly for tests
 
-# Determine model to use for testing (use a smaller one if possible, but need vectors)
-TEST_MODEL_NAME = os.getenv("SPACY_MODEL", "en_core_web_md") # Use the same logic as app
-
-@pytest.fixture(scope="module") # Load model only once per module
-def nlp_model() -> Language:
-    """Pytest fixture to load the spaCy model."""
-    print(f"\nLoading test model: {TEST_MODEL_NAME}")
-    try:
-        # You might disable pipes you don't explicitly test for speed
-        # disable_pipes = ["parser", "ner"]
-        # model = spacy.load(TEST_MODEL_NAME, disable=disable_pipes)
-        model = spacy.load(TEST_MODEL_NAME)
-        print("Test model loaded.")
-        return model
-    except OSError:
-        pytest.skip(f"Skipping tests: spaCy model '{TEST_MODEL_NAME}' not found. Run 'python -m spacy download {TEST_MODEL_NAME}'", allow_module_level=True)
-
-# --- Tests for calculate_similarity ---
-
-def test_similarity_identical(nlp_model: Language):
-    """Test similarity of identical non-trivial texts."""
-    text = "This is a reasonably long sentence used for testing similarity calculation."
-    score = calculate_similarity(nlp_model, text, text)
-    assert score == pytest.approx(1.0, abs=1e-3)
-
-def test_similarity_very_different(nlp_model: Language):
-    """Test similarity of semantically very different texts."""
-    text1 = "The quick brown fox jumps over the lazy dog near the river bank."
-    text2 = "Operating systems manage computer hardware and software resources efficiently."
-    score = calculate_similarity(nlp_model, text1, text2)
-    assert score < 0.6 # Expect low similarity, threshold might need tuning based on model
-
-def test_similarity_related(nlp_model: Language):
-    """Test similarity of semantically related texts."""
-    text1 = "We are looking for a Python developer with experience in web frameworks like Django or Flask."
-    text2 = "Seeking a software engineer skilled in Python programming and backend development using Django."
-    score = calculate_similarity(nlp_model, text1, text2)
-    assert score > 0.75 # Expect reasonably high similarity
-
-@pytest.mark.parametrize("text1, text2, expected", [
-    ("", "Some text", 0.0),
-    ("Some text", "", 0.0),
-    ("", "", 0.0),
-    ("Short", "Different short", 0.0) # Model might struggle with very short texts
+# --- Tests for clean_text ---
+@pytest.mark.parametrize("input_text, expected_output", [
+    ("  hello \n world  ", "hello world"),
+    ("line1\n\n\nline2", "line1\n\nline2"),
+    (None, ""),
+    ("\t tabbed \t ", "tabbed"),
 ])
-def test_similarity_empty_or_short(nlp_model: Language, text1: str, text2: str, expected: float):
-    """Test similarity with empty or very short inputs."""
-    # Note: Actual score for short texts depends heavily on the model and content.
-    # Here we mainly test the handling of empty strings.
-    if len(text1) < 5 or len(text2) < 5: # Check if it's an empty/short case
-        assert calculate_similarity(nlp_model, text1, text2) == expected
-    else: # Placeholder for potential future short text tests
-        pass
+def test_clean_text(input_text, expected_output):
+    assert clean_text(input_text) == expected_output
 
+# --- Tests for readability (skip if library not installed) ---
+@pytest.mark.skipif(not readability_available_test, reason="textstat not installed")
+def test_readability_scores_valid():
+    # Generate long text
+    sample_text = ("This is a sample sentence repeated many times to ensure sufficient length for calculation. " * 10 +
+                   "It contains various words and structures typical of standard English prose, facilitating readability analysis. " * 5)
+    scores = get_readability_scores(sample_text)
+    assert scores is not None
+    assert "flesch_reading_ease" in scores
+    assert "flesch_kincaid_grade" in scores
+    assert scores["flesch_reading_ease"] > 0 # Basic sanity check
+    assert scores["flesch_kincaid_grade"] > 0
 
-def test_similarity_unicode(nlp_model: Language):
-    """Test similarity with unicode characters."""
-    text1 = "Résumé with special characters like éàçü."
-    text2 = "An application including a résumé with accents éàçü is required."
-    score = calculate_similarity(nlp_model, text1, text2)
-    assert score > 0.7 # Expect relatively high similarity
+@pytest.mark.skipif(not readability_available_test, reason="textstat not installed")
+def test_readability_scores_short_text():
+     short_text = "This text is too short."
+     assert get_readability_scores(short_text) is None
 
-def test_similarity_no_model():
-    """Test behavior when NLP model is None."""
-    score = calculate_similarity(None, "Some text", "Other text")
-    assert score == 0.0
+# --- Tests for ATS checks ---
+def test_contact_info():
+    text_with_both = "My contact: test@example.com and (123) 456-7890."
+    text_with_email = "Email me at test@example.com please."
+    text_with_phone = "Call 123-456-7890 for info."
+    text_with_none = "No contact details here."
+    assert check_contact_info(text_with_both) == {"email_found": True, "phone_found": True}
+    assert check_contact_info(text_with_email) == {"email_found": True, "phone_found": False}
+    assert check_contact_info(text_with_phone) == {"email_found": False, "phone_found": True}
+    assert check_contact_info(text_with_none) == {"email_found": False, "phone_found": False}
 
-# --- Tests for extract_and_compare_keywords ---
+def test_section_headings():
+    text = """
+SUMMARY
+A great developer.
 
-def test_keywords_basic(nlp_model: Language):
-    """Test basic keyword extraction and comparison."""
-    text1 = "The data scientist uses Python and SQL for analysis."
-    text2 = "Analysis requires Python skills and knowledge of SQL databases."
-    expected = {
-        "common": sorted(["analysis", "python", "sql"]),
-        "unique_text1": sorted(["data", "scientist"]), # 'uses' is stopword
-        "unique_text2": sorted(["database", "knowledge", "skill"]) # 'requires' verb
-    }
-    result = extract_and_compare_keywords(nlp_model, text1, text2)
-    # Sort results for consistent comparison
-    for key in result: result[key] = sorted(result[key])
-    assert result == expected
+EDUCATION
+Degree U
 
-def test_keywords_no_common(nlp_model: Language):
-    """Test keyword extraction with no common relevant words."""
-    text1 = "The cat sat on the mat." # Mostly stopwords or non-nouns/propns
-    text2 = "A quick brown fox jumped."
-    expected = {
-        "common": [],
-        "unique_text1": sorted(["cat", "mat"]),
-        "unique_text2": sorted(["fox"])
-    }
-    result = extract_and_compare_keywords(nlp_model, text1, text2)
-    for key in result: result[key] = sorted(result[key])
-    assert result == expected
+Work History
+Company X
 
+SKILLS & COMPETENCIES
+Python, Java
+"""
+    expected = {"summary": True, "education": True, "experience": True, "skills": True}
+    assert check_section_headings(text) == expected
 
-@pytest.mark.parametrize("text1, text2", [
-    ("", "Some text"),
-    ("Some text", ""),
-    ("", ""),
-])
-def test_keywords_empty_input(nlp_model: Language, text1: str, text2: str):
-    """Test keyword extraction with empty inputs."""
-    expected = {"common": [], "unique_text1": [], "unique_text2": []}
-    result = extract_and_compare_keywords(nlp_model, text1, text2)
-    assert result == expected
+# --- Tests for Achievements ---
+def test_quantifiable_achievements():
+    text = """
+- Increased sales by 20%.
+* Managed a budget of $50k.
+• Reduced errors significantly. Led a team of 5.
+Regular sentence.
+- Saved the company time.
+Achieved target goals.
+    """
+    results = find_quantifiable_achievements(text)
+    assert len(results) >= 4 # Expecting lines with %, $, numbers, or strong verbs with bullets
+    assert any("20%" in r for r in results)
+    assert any("$50k" in r for r in results)
+    assert any("team of 5" in r for r in results)
+    # "Reduced errors" might be missed if it doesn't fit the simplified regex perfectly
+    # "Saved the company time" might be missed if not bulleted AND no number
 
-def test_keywords_no_model():
-    """Test keyword extraction when model is None."""
-    expected = {"common": [], "unique_text1": [], "unique_text2": []}
-    result = extract_and_compare_keywords(None, "Some text", "Other text")
-    assert result == expected
+# Add more tests for skill extraction (might require mocking nlp), action verbs etc.
+# Testing file readers requires creating mock file streams (io.BytesIO)

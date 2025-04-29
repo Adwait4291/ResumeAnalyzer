@@ -1,0 +1,23 @@
+{"label": "SKILL", "pattern": [{"LOWER": "python"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "java"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "sql"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "pandas"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "numpy"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "scikit-learn"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "tensorflow"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "pytorch"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "aws"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "azure"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "gcp"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "docker"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "kubernetes"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "git"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "jira"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "communication"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "teamwork"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "problem"}, {"LOWER": "solving"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "data"}, {"LOWER": "analysis"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "machine"}, {"LOWER": "learning"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "natural"}, {"LOWER": "language"}, {"LOWER": "processing"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "nlp"}]}
+{"label": "SKILL", "pattern": [{"LOWER": "project"}, {"LOWER": "management"}]}
